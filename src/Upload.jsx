@@ -2,148 +2,189 @@ import { useState } from "react";
 import { supabase } from "../supabase";
 import { useNavigate } from "react-router-dom";
 
+// ⚠️ Must match Supabase folders exactly
+const documentTypes = ["aadhar", "license", "PAN", "passport", "register"];
+
 function Upload() {
+  const [files, setFiles] = useState({});
+  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const [files, setFiles] = useState({
-    aadhar: null,
-    pan: null,
-    license: null,
-    passport: null,
-    photo: null,
-  });
-
-  const phoneNumber = localStorage.getItem("userPhone"); // must be saved during form submit
-
-  /* ================= FILE CHANGE ================= */
-
-  const handleFileChange = (e, type) => {
-    const file = e.target.files[0];
-
-    if (!file) return;
-
-    // 150KB LIMIT
-    if (file.size > 150 * 1024) {
-      alert("File must be under 150KB");
-      return;
-    }
-
+  /* ==============================
+     FILE SELECT
+  ============================== */
+  const handleFileChange = (type, file) => {
     setFiles((prev) => ({
       ...prev,
       [type]: file,
     }));
   };
 
-  /* ================= UPLOAD FUNCTION ================= */
-
+  /* ==============================
+     UPLOAD + GET PUBLIC URL
+  ============================== */
   const uploadFile = async (file, folder) => {
-    const fileName = `${phoneNumber}_${folder}_${Date.now()}`;
+    if (!file) return null;
 
+    const fileName = `${Date.now()}_${file.name}`;
+    const filePath = `${folder}/${fileName}`;
+
+    // Upload
     const { error } = await supabase.storage
-      .from("vacation") // your bucket name
-      .upload(fileName, file);
+      .from("documents")
+      .upload(filePath, file, { upsert: false });
 
     if (error) {
-      console.error(error);
+      console.error("Upload error:", error);
       return null;
     }
 
+    // Get public URL
     const { data } = supabase.storage
-      .from("vacation")
-      .getPublicUrl(fileName);
+      .from("documents")
+      .getPublicUrl(filePath);
 
     return data.publicUrl;
   };
 
-  /* ================= SUBMIT ================= */
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!phoneNumber) {
-      alert("Phone not found. Please fill form again.");
+  /* ==============================
+     HANDLE UPLOAD
+  ============================== */
+  const handleUpload = async () => {
+    if (Object.keys(files).length === 0) {
+      alert("Please select at least one file");
       return;
     }
 
+    setLoading(true);
+
     try {
-      const aadhar_url = await uploadFile(files.aadhar, "aadhar");
-      const pan_url = await uploadFile(files.pan, "pan");
-      const license_url = await uploadFile(files.license, "license");
-      const passport_url = await uploadFile(files.passport, "passport");
-      const photo_url = await uploadFile(files.photo, "photo");
+      const uploadedUrls = {};
 
-      await supabase.from("documents").insert([
-        {
-          user_id: phoneNumber,
-          aadhar_url,
-          pan_url,
-          license_url,
-          passport_url,
-          photo_url,
-          document_status: "Pending",
-        },
-      ]);
+      // Upload all files
+      for (let type of documentTypes) {
+        const file = files[type];
 
-      alert("Documents Uploaded Successfully");
-      navigate("/");
-    } catch (error) {
-      console.error(error);
-      alert("Upload failed");
+        if (!file) continue;
+
+        const url = await uploadFile(file, type);
+
+        if (!url) {
+          alert(`Upload failed for ${type}`);
+          setLoading(false);
+          return;
+        }
+
+        uploadedUrls[type] = url;
+      }
+
+      console.log("Uploaded URLs:", uploadedUrls);
+
+      alert("Upload Successful ✅");
+
+      setFiles({});
+
+      // You can save uploadedUrls in Firestore later if needed
+
+      navigate("/view-documents");
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* ================= UI ================= */
-
+  /* ==============================
+     UI
+  ============================== */
   return (
-    <div style={{ padding: 30 }}>
-      <h2>Upload Documents</h2>
+    <div style={styles.container}>
+      <h2 style={styles.title}>Upload Documents</h2>
 
-      <form onSubmit={handleSubmit}>
+      {documentTypes.map((type) => (
+        <div key={type} style={styles.card}>
+          <h4 style={styles.label}>{type}</h4>
 
-        <div>
-          <label>Aadhar Card</label>
-          <input type="file" accept="image/*"
-            onChange={(e) => handleFileChange(e, "aadhar")} />
-        </div>
-
-        <div>
-          <label>PAN Card</label>
-          <input type="file" accept="image/*"
-            onChange={(e) => handleFileChange(e, "pan")} />
-        </div>
-
-        <div>
-          <label>Driving License</label>
-          <input type="file" accept="image/*"
-            onChange={(e) => handleFileChange(e, "license")} />
-        </div>
-
-        <div>
-          <label>Passport</label>
-          <input type="file" accept="image/*"
-            onChange={(e) => handleFileChange(e, "passport")} />
-        </div>
-
-        <div>
-          <label>Register Photo (Camera)</label>
           <input
             type="file"
             accept="image/*"
-            capture="environment"
-            onChange={(e) => handleFileChange(e, "photo")}
+            onChange={(e) =>
+              handleFileChange(type, e.target.files[0])
+            }
           />
+
+          {files[type] && (
+            <img
+              src={URL.createObjectURL(files[type])}
+              alt="preview"
+              style={styles.preview}
+            />
+          )}
         </div>
+      ))}
 
-        <br />
-
-        <button type="submit">Submit</button>
-        <button type="button" onClick={() => navigate(-1)}>
-          Back
-        </button>
-
-      </form>
+      <button
+        onClick={handleUpload}
+        disabled={loading}
+        style={styles.button}
+      >
+        {loading ? "Uploading..." : "Upload"}
+      </button>
     </div>
   );
 }
 
 export default Upload;
+
+/* ==============================
+   STYLES
+============================== */
+
+const styles = {
+  container: {
+    maxWidth: "700px",
+    margin: "40px auto",
+    background: "#1e293b",
+    padding: "30px",
+    borderRadius: "12px",
+    color: "#fff",
+  },
+
+  title: {
+    textAlign: "center",
+    marginBottom: "25px",
+  },
+
+  card: {
+    background: "#334155",
+    padding: "15px",
+    borderRadius: "8px",
+    marginBottom: "15px",
+  },
+
+  label: {
+    marginBottom: "8px",
+  },
+
+  preview: {
+    width: "120px",
+    marginTop: "10px",
+    borderRadius: "6px",
+    border: "2px solid white",
+  },
+
+  button: {
+    width: "100%",
+    padding: "12px",
+    background: "#3b82f6",
+    border: "none",
+    color: "white",
+    fontSize: "16px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    marginTop: "20px",
+  },
+};
