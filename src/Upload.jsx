@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { supabase } from "../supabase";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-// ⚠️ Must match Supabase folders exactly
+// ✅ ADD FIREBASE IMPORTS
+import { db } from "../firebase";
+import { collection, addDoc } from "firebase/firestore";
+
+// same document types
 const documentTypes = ["aadhar", "license", "PAN", "passport", "register"];
 
 function Upload() {
@@ -22,36 +26,38 @@ function Upload() {
   };
 
   /* ==============================
-     UPLOAD + GET PUBLIC URL
+     CLOUDINARY UPLOAD (via backend)
   ============================== */
   const uploadFile = async (file, folder) => {
     if (!file) return null;
 
-    const fileName = `${Date.now()}_${file.name}`;
-    const filePath = `${folder}/${fileName}`;
+    console.log("📤 Sending file:", file); // ✅ DEBUG
 
-    // Upload
-    const { error } = await supabase.storage
-      .from("documents")
-      .upload(filePath, file, { upsert: false });
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("folder", folder);
 
-    if (error) {
-      console.error("Upload error:", error);
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/upload",
+        formData
+      );
+
+      console.log("✅ Uploaded URL:", res.data.url); // ✅ DEBUG
+
+      return res.data.url;
+    } catch (err) {
+      console.error("❌ Upload error:", err);
       return null;
     }
-
-    // Get public URL
-    const { data } = supabase.storage
-      .from("documents")
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
   };
 
   /* ==============================
      HANDLE UPLOAD
   ============================== */
   const handleUpload = async () => {
+    console.log("🚀 UPLOAD CLICKED"); // ✅ DEBUG
+
     if (Object.keys(files).length === 0) {
       alert("Please select at least one file");
       return;
@@ -62,10 +68,8 @@ function Upload() {
     try {
       const uploadedUrls = {};
 
-      // Upload all files
       for (let type of documentTypes) {
         const file = files[type];
-
         if (!file) continue;
 
         const url = await uploadFile(file, type);
@@ -77,15 +81,20 @@ function Upload() {
         }
 
         uploadedUrls[type] = url;
+
+        // ✅ SAVE TO FIREBASE (IMPORTANT)
+        await addDoc(collection(db, "documents"), {
+          type: type,
+          url: url,
+          createdAt: new Date(),
+        });
       }
 
-      console.log("Uploaded URLs:", uploadedUrls);
+      console.log("🎉 Uploaded URLs:", uploadedUrls);
 
       alert("Upload Successful ✅");
 
       setFiles({});
-
-      // You can save uploadedUrls in Firestore later if needed
 
       navigate("/view-documents");
 
@@ -110,7 +119,7 @@ function Upload() {
 
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             onChange={(e) =>
               handleFileChange(type, e.target.files[0])
             }

@@ -10,7 +10,7 @@ function VerifyEdit() {
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     const fetchBooking = async () => {
@@ -23,8 +23,7 @@ function VerifyEdit() {
           alert("Booking not found");
         }
       } catch (err) {
-        console.error(err);
-        alert("Failed to load booking");
+        console.error("Fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -44,12 +43,6 @@ function VerifyEdit() {
     setBooking({ ...booking, entries: updated });
   };
 
-  const handleStayChange = (idx, field, value) => {
-    const updated = [...booking.entries];
-    updated[idx].stay[field] = value;
-    setBooking({ ...booking, entries: updated });
-  };
-
   const handlePhoneChange = (idx, value) => {
     const updated = [...booking.entries];
     updated[idx].phones = value.split(",").map((p) => p.trim());
@@ -63,313 +56,197 @@ function VerifyEdit() {
         entries: booking.entries,
         updatedAt: serverTimestamp(),
       });
-      alert("✅ All Changes Saved");
+      alert("✅ Saved Successfully");
       setEditMode(false);
     } catch (err) {
-      console.error(err);
-      alert("❌ Failed to Save Changes");
+      console.error("Save error:", err);
     }
   };
 
-  const handleCheckout = (index) => {
-    navigate(`/out-form/${bookingId}/${index}`);
-  };
-
-  if (loading) return <div className="loader">Loading Booking Data...</div>;
-  if (!booking) return <div className="loader">No Data Found</div>;
-
-  const isActive = booking.entries.length > 0;
+  if (loading)
+    return (
+      <div style={{ color: "white", textAlign: "center", marginTop: "50px" }}>
+        Loading...
+      </div>
+    );
+  if (!booking)
+    return (
+      <div style={{ color: "white", textAlign: "center", marginTop: "50px" }}>
+        Data not found.
+      </div>
+    );
 
   return (
-    <div className={`verify-wrapper ${darkMode ? "dark" : "light"}`}>
+    <div className="page-wrapper">
       <style>{`
-        .verify-wrapper {
-          min-height: 100vh;
-          width: 100vw;
+        body { margin: 0; padding: 0; background-color: #0f172a; font-family: 'Segoe UI', sans-serif; }
+
+        .page-wrapper {
           display: flex;
           justify-content: center;
-          padding: 40px 20px;
-          transition: all 0.4s ease;
+          width: 100vw;
+          min-height: 100vh;
+          background-color: #0f172a;
+          padding: 20px;
           box-sizing: border-box;
-          font-family: 'Inter', sans-serif;
-        }
-
-        .verify-wrapper.dark { 
-          background: radial-gradient(circle at top left, #1e293b, #0f172a); 
-          color: #f1f5f9; 
-        }
-        .verify-wrapper.light { 
-          background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); 
-          color: #0f172a; 
         }
 
         .container {
           width: 100%;
-          max-width: 900px;
-          animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .header-card {
-          background: ${darkMode ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.6)'};
-          backdrop-filter: blur(12px);
+          max-width: 800px;
+          background: #fff;
+          border-radius: 12px;
           padding: 30px;
-          border-radius: 24px;
-          border: 1px solid ${darkMode ? '#334155' : 'rgba(255,255,255,0.5)'};
+          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header-section {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 30px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-          flex-wrap: wrap;
-          gap: 20px;
-        }
-
-        .status-badge {
-          display: inline-block;
-          padding: 6px 16px;
-          border-radius: 99px;
-          font-size: 11px;
-          font-weight: 800;
-          text-transform: uppercase;
-          margin-top: 10px;
-          letter-spacing: 0.5px;
-        }
-
-        .guest-card {
-          background: ${darkMode ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.8)'};
-          backdrop-filter: blur(8px);
-          padding: 30px;
-          border-radius: 20px;
           margin-bottom: 25px;
-          border: 1px solid ${darkMode ? '#475569' : '#ffffff'};
-          box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+          border-bottom: 1px solid #f1f5f9;
+          padding-bottom: 10px;
         }
 
-        .grid-layout {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 20px;
-          margin-top: 15px;
-        }
+        h2 { color: #2c3e50; margin: 0; font-weight: 700; font-size: 22px; }
+        .btn-group { display: flex; gap: 10px; }
 
-        .section-label { 
-          font-size: 11px; 
-          font-weight: 800; 
-          color: #6366f1; 
-          text-transform: uppercase; 
-          margin-bottom: 12px;
-          display: block;
-          letter-spacing: 1px;
-        }
-
-        input {
-          width: 100%;
-          padding: 12px 14px;
-          border-radius: 10px;
-          border: 1.5px solid ${darkMode ? '#475569' : '#94a3b8'};
-          background: ${darkMode ? '#1e293b' : '#ffffff'};
-          color: inherit;
-          font-size: 14px;
-          transition: all 0.2s;
-        }
-        input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); }
-        input:disabled { background: transparent; border-color: transparent; padding-left: 0; cursor: default; font-weight: 500; }
-
-        .btn {
-          padding: 10px 22px;
-          border-radius: 12px;
-          border: none;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 13px;
-        }
-
-        .btn-back { background: transparent; border: 1.5px solid ${darkMode ? '#475569' : '#94a3b8'}; color: inherit; }
-        .btn-toggle { background: ${darkMode ? '#f8fafc' : '#1e293b'}; color: ${darkMode ? '#0f172a' : '#ffffff'}; }
-        .btn-edit { background: #6366f1; color: white; }
-        .btn-save { background: #10b981; color: white; }
-        .btn-checkout { 
-          background: #f43f5e; 
-          color: white; 
-          width: 100%; 
-          justify-content: center;
-          margin-top: 25px;
-          font-size: 15px;
-          padding: 14px;
-        }
-        .btn:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-        .doc-link {
-          color: #4f46e5;
-          text-decoration: none;
-          font-weight: 700;
-          font-size: 12px;
-          padding: 6px 12px;
-          background: rgba(99, 102, 241, 0.15);
+        button {
+          padding: 10px 18px;
           border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          border: none;
           transition: 0.2s;
         }
-        .doc-link:hover { background: rgba(99, 102, 241, 0.25); }
+        .btn-edit { background: #4a90e2; color: white; }
+        .btn-save { background: #22c55e; color: white; }
+        .btn-cancel { background: #f0f2f5; color: #4b5563; border: 1px solid #d1d5db; }
+        .btn-checkout {
+          width: 100%;
+          background: transparent;
+          border: 2px solid #4a90e2;
+          color: #4a90e2;
+          margin-top: 15px;
+          padding: 12px;
+          font-weight: 700;
+        }
+        .btn-checkout:hover { background: #4a90e2; color: white; }
 
-        .loader {
-          height: 100vh;
+        .card { 
+          border: 1px solid #edf2f7; 
+          border-radius: 12px; 
+          padding: 20px; 
+          margin-bottom: 20px; 
+          background: #fdfdfd;
+        }
+
+        .guest-title { color: #4a90e2; margin-top: 0; margin-bottom: 15px; font-weight: 700; }
+
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .field { display: flex; flex-direction: column; }
+        label { font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 5px; }
+
+        input {
+          padding: 10px;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          background: #fff;
+          font-size: 14px;
+          color: #1e293b !important;
+        }
+        input:disabled { background: #f1f5f9; color: #6b7280; border-color: #e2e8f0; }
+
+        .docs-section { margin-top: 10px; }
+        .docs-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .doc-thumb { width: 90px; cursor: pointer; text-align: center; }
+        .doc-thumb img { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; border: 2px solid #e5e7eb; }
+        .doc-thumb span { font-size: 10px; font-weight: 600; color: #4a90e2; display: block; margin-top: 5px; }
+
+        .overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.85);
           display: flex;
-          align-items: center;
           justify-content: center;
-          background: #e2e8f0;
-          color: #1e293b;
-          font-size: 1.2rem;
-          font-weight: 600;
+          align-items: center;
+          z-index: 100;
+          backdrop-filter: blur(4px);
+        }
+        .overlay img { max-width: 90%; max-height: 80vh; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+
+        @media (max-width: 600px) {
+          .input-grid { grid-template-columns: 1fr; }
+          .container { padding: 20px; border-radius: 0; }
         }
       `}</style>
 
       <div className="container">
-        {/* HEADER SECTION */}
-        <div className="header-card">
-          <div>
-            <button className="btn btn-back" onClick={() => navigate("/booking")} style={{marginBottom: '15px'}}>
-              ← Back to Bookings
-            </button>
-            <h2 style={{ margin: 0, letterSpacing: '-0.5px' }}>Verification Dashboard</h2>
-            <div style={{ fontSize: '13px', opacity: 0.7, marginTop: '6px' }}>
-              Reference: <span style={{fontWeight: 700}}>{bookingId.slice(-8).toUpperCase()}</span>
-            </div>
-            <span className="status-badge" style={{ 
-              background: isActive ? '#bbf7d0' : '#fecaca', 
-              color: isActive ? '#166534' : '#991b1b' 
-            }}>
-              {isActive ? "● Active Stay" : "○ Checked Out"}
-            </span>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <button className="btn btn-toggle" onClick={() => setDarkMode(!darkMode)}>
-              {darkMode ? "☀ Light" : "🌙 Dark"}
-            </button>
-            
-            {/* Separate Save and Edit Buttons */}
-            <button 
-              className="btn btn-edit" 
-              onClick={() => setEditMode(true)}
-              style={{ display: editMode ? 'none' : 'flex' }}
+        <div className="header-section">
+          <h2>Verify Details</h2>
+          <div className="btn-group">
+            {editMode && <button className="btn-save" onClick={handleSave}>Save Changes</button>}
+            <button
+              className={editMode ? "btn-cancel" : "btn-edit"}
+              onClick={() => setEditMode(!editMode)}
             >
-              ✏️ Edit Info
+              {editMode ? "Cancel" : "Edit Details"}
             </button>
-
-            {editMode && (
-              <>
-                <button className="btn btn-save" onClick={handleSave}>
-                  💾 Save Changes
-                </button>
-                <button className="btn btn-back" onClick={() => setEditMode(false)}>
-                  Cancel
-                </button>
-              </>
-            )}
           </div>
         </div>
 
-        {/* GUEST ENTRIES */}
         {booking.entries.map((entry, idx) => (
-          <div key={idx} className="guest-card">
-            <h4 style={{ 
-              marginTop: 0, 
-              borderBottom: `2px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`, 
-              paddingBottom: '12px',
-              fontSize: '18px'
-            }}>
-              Guest Information #{idx + 1}
-            </h4>
+          <div className="card" key={idx}>
+            <h3 className="guest-title">Guest #{idx + 1}</h3>
 
-            <div className="section-box" style={{marginBottom: '25px'}}>
-              <span className="section-label">Identity Details</span>
-              <div className="grid-layout">
-                <div>
-                  <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.6}}>FULL NAME</label>
-                  <input
-                    value={entry.name}
-                    disabled={!editMode}
-                    onChange={(e) => handleChange(idx, "name", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.6}}>AGE</label>
-                  <input
-                    value={entry.age}
-                    disabled={!editMode}
-                    onChange={(e) => handleChange(idx, "age", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.6}}>CONTACTS</label>
-                  <input
-                    value={entry.phones.join(", ")}
-                    disabled={!editMode}
-                    onChange={(e) => handlePhoneChange(idx, e.target.value)}
-                  />
-                </div>
+            <div className="input-grid">
+              <div className="field">
+                <label>Full Name</label>
+                <input disabled={!editMode} value={entry.name} onChange={(e) => handleChange(idx, "name", e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Age</label>
+                <input disabled={!editMode} value={entry.age} onChange={(e) => handleChange(idx, "age", e.target.value)} />
               </div>
             </div>
 
-            <div className="section-box" style={{marginBottom: '25px'}}>
-              <span className="section-label">Logistics</span>
-              <div className="grid-layout">
-                <div>
-                  <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.6}}>NATIONALITY</label>
-                  <input
-                    value={entry.arrival.nationality}
-                    disabled={!editMode}
-                    onChange={(e) => handleArrivalChange(idx, "nationality", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.6}}>ARRIVAL DATE</label>
-                  <input
-                    type={editMode ? "date" : "text"}
-                    value={entry.arrival.arrivalDate}
-                    disabled={!editMode}
-                    onChange={(e) => handleArrivalChange(idx, "arrivalDate", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label style={{fontSize: '10px', fontWeight: 700, opacity: 0.6}}>ROOM NUMBER</label>
-                  <input
-                    value={entry.stay.roomNo}
-                    disabled={!editMode}
-                    onChange={(e) => handleStayChange(idx, "roomNo", e.target.value)}
-                  />
-                </div>
+            <div className="input-grid">
+              <div className="field">
+                <label>Phone Numbers (Comma Separated)</label>
+                <input disabled={!editMode} value={entry.phones.join(", ")} onChange={(e) => handlePhoneChange(idx, e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Nationality</label>
+                <input disabled={!editMode} value={entry.arrival.nationality} onChange={(e) => handleArrivalChange(idx, "nationality", e.target.value)} />
               </div>
             </div>
 
-            <div className="section-box">
-              <span className="section-label">Digital Documents</span>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '10px' }}>
+            <div className="docs-section">
+              <label>Verification Documents</label>
+              <div className="docs-grid">
                 {Object.entries(entry)
-                  .filter(([key]) => key.endsWith("Url"))
-                  .map(([key, value]) => (
-                    <a key={key} href={value} target="_blank" rel="noreferrer" className="doc-link">
-                      📎 {key.replace("Url", "").toUpperCase()}
-                    </a>
+                  .filter(([key, val]) => ["aadharFront", "aadharBack", "pan", "license", "passport", "photo"].includes(key) && val)
+                  .map(([key, val]) => (
+                    <div className="doc-thumb" key={key} onClick={() => setPreview(val)}>
+                      <img src={val} alt={key} />
+                      <span>{key.replace(/([A-Z])/g, ' $1').toUpperCase()}</span>
+                    </div>
                   ))}
               </div>
             </div>
 
-            <button className="btn btn-checkout" onClick={() => handleCheckout(idx)}>
-              Check-out Guest
+            <button className="btn-checkout" onClick={() => navigate(`/out-form/${bookingId}/${idx}`)}>
+              Proceed to Check-out
             </button>
           </div>
         ))}
+
+        {preview && (
+          <div className="overlay" onClick={() => setPreview(null)}>
+            <img src={preview} alt="preview" />
+          </div>
+        )}
       </div>
     </div>
   );
